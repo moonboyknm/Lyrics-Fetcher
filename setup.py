@@ -18,8 +18,8 @@ setup(
     long_description=read_readme(),
     long_description_content_type='text/markdown',
     author='archboyknm',
-    author_email='your.email@example.com',
-    url='https://github.com/yourusername/lyrics-cli',
+    author_email='mudgal.kratik@gmail.com',
+    url='https://github.com/moonboyknm/Lyrics-Fetcher',
     license='MIT',
     
     # Package configuration
@@ -55,6 +55,8 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         'Topic :: Multimedia :: Sound/Audio',
         'Topic :: Utilities',
         'Environment :: Console',
@@ -65,9 +67,9 @@ setup(
     
     # Project URLs
     project_urls={
-        'Bug Reports': 'https://github.com/yourusername/lyrics-cli/issues',
-        'Source': 'https://github.com/yourusername/lyrics-cli',
-        'Documentation': 'https://github.com/yourusername/lyrics-cli/README.md',
+        'Bug Reports': 'https://github.com/moonboyknm/Lyrics-Fetcher/issues',
+        'Source': 'https://github.com/moonboyknm/Lyrics-Fetcher',
+        'Documentation': 'https://github.com/moonboyknm/Lyrics-Fetcher/README.md',
     },
 )
 

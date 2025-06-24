@@ -72,68 +72,58 @@ fi
 print_status "pip is available"
 
 # Check if git is installed (for cloning)
+# This check is more relevant if the script itself does the cloning.
+# If the user is expected to clone manually, this can be less critical.
 if ! command -v git &> /dev/null; then
-    print_warning "Git is not installed. Installing git..."
-    if command -v pacman &> /dev/null; then
-        sudo pacman -S git --noconfirm
-    else
-        print_error "Please install git manually and run this script again."
-        exit 1
-    fi
+    print_warning "Git is not installed. This might be needed if you cloned the repository."
+    # Removed automatic git install as it's better to tell user or assume pre-cloned state.
 fi
 
 # Create default lyrics directory
 DEFAULT_LYRICS_DIR="$HOME/Documents/Obsidian/Lyrics"
 print_info "Creating default lyrics directory..."
-mkdir -p "$DEFAULT_LYRICS_DIR"
-print_status "Created directory: $DEFAULT_LYRICS_DIR"
+if mkdir -p "$DEFAULT_LYRICS_DIR"; then
+    print_status "Created directory: $DEFAULT_LYRICS_DIR"
+else
+    print_error "Failed to create directory: $DEFAULT_LYRICS_DIR"
+    exit 1
+fi
 
 # Install the package
-print_info "Installing lyrics-cli..."
+print_info "Installing lyrics-cli via pip..."
 
-# Method 1: If we're in the project directory, install from source
-if [[ -f "setup.py" && -f "lyrics_fetcher.py" && -f "main.py" ]]; then
-    print_info "Installing from source..."
-    
-    # Install dependencies
-    print_info "Installing dependencies..."
-    pip3 install --user requests
-    
-    # Install the package in development mode
-    pip3 install --user -e .
-    
-    if [[ $? -eq 0 ]]; then
-        print_status "Successfully installed lyrics-cli from source!"
-    else
-        print_error "Failed to install from source"
+# Ensure setup.py exists before attempting installation
+if [[ ! -f "setup.py" ]]; then
+    print_error "setup.py not found in the current directory."
+    echo "Please run this script from the root directory of the Lyrics-Fetcher project."
+    exit 1
+fi
+
+# Perform the standard user installation using setup.py
+python3 -m pip install --user .
+INSTALL_STATUS=$?
+
+if [[ $INSTALL_STATUS -eq 0 ]]; then
+    print_status "Successfully installed lyrics-cli!"
+else
+    print_error "Failed to install lyrics-cli."
+    echo "Attempting to clean up and retry installation..."
+    # Attempt a clean uninstall before retrying, for robustness
+    python3 -m pip uninstall -y lyrics-cli 2>/dev/null # Suppress errors if not installed
+    python3 -m pip install --user .
+    INSTALL_STATUS=$?
+
+    if [[ $INSTALL_STATUS -ne 0 ]]; then
+        print_error "Installation failed even after retry. Please check the output above for errors."
         exit 1
     fi
-    
-else
-    # Method 2: Install individual files to a local directory
-    print_info "Installing as standalone scripts..."
-    
-    # Create local bin directory
-    LOCAL_BIN="$HOME/.local/bin"
-    mkdir -p "$LOCAL_BIN"
-    
-    # Copy files
-    cp lyrics_fetcher.py "$LOCAL_BIN/"
-    cp main.py "$LOCAL_BIN/lyrics-cli"
-    
-    # Make executable
-    chmod +x "$LOCAL_BIN/lyrics-cli"
-    
-    # Install dependencies
-    pip3 install --user requests
-    
-    print_status "Installed lyrics-cli to $LOCAL_BIN"
 fi
 
 # Check if ~/.local/bin is in PATH
 print_info "Checking PATH configuration..."
-if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    print_warning "~/.local/bin is not in your PATH"
+LOCAL_BIN="$HOME/.local/bin"
+if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
+    print_warning "$LOCAL_BIN is not in your PATH"
     echo
     echo "To use lyrics-cli from anywhere, add this line to your shell config:"
     echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
@@ -144,26 +134,26 @@ if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     echo
     
     # Ask if user wants to add to PATH automatically
-    echo -n "Would you like to add ~/.local/bin to your PATH automatically? (y/n): "
+    echo -n "Would you like to add $LOCAL_BIN to your PATH automatically? (y/n): "
     read -r add_to_path
     
     if [[ $add_to_path =~ ^[Yy]$ ]]; then
         # Detect shell and add to appropriate config
         if [[ -n "$ZSH_VERSION" ]]; then
             # User is running zsh
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
             print_status "Added to ~/.zshrc"
         elif [[ -n "$BASH_VERSION" ]]; then
             # User is running bash
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
             print_status "Added to ~/.bashrc"
         else
             # Try to detect based on available config files
-            if [[ -f ~/.zshrc ]]; then
-                echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+            if [[ -f "$HOME/.zshrc" ]]; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
                 print_status "Added to ~/.zshrc"
-            elif [[ -f ~/.bashrc ]]; then
-                echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+            elif [[ -f "$HOME/.bashrc" ]]; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
                 print_status "Added to ~/.bashrc"
             else
                 print_warning "Could not detect shell config file. Please add manually."
@@ -181,7 +171,16 @@ print_info "Creating configuration file..."
 CONFIG_DIR="$HOME/.config/lyrics-cli"
 mkdir -p "$CONFIG_DIR"
 
-cat > "$CONFIG_DIR/config.json" << EOL
+# Check if config.json already exists before creating.
+# If it exists, offer to overwrite or skip.
+if [[ -f "$CONFIG_DIR/config.json" ]]; then
+    print_warning "Configuration file already exists at $CONFIG_DIR/config.json."
+    echo -n "Overwrite with default configuration? (y/n): "
+    read -r overwrite_config
+    if [[ ! $overwrite_config =~ ^[Yy]$ ]]; then
+        print_status "Skipping config file creation."
+    else
+        cat > "$CONFIG_DIR/config.json" << EOL
 {
     "default_lyrics_dir": "$DEFAULT_LYRICS_DIR",
     "file_format": "markdown",
@@ -190,18 +189,33 @@ cat > "$CONFIG_DIR/config.json" << EOL
     "quiet_mode": false
 }
 EOL
-
-print_status "Created configuration file at $CONFIG_DIR/config.json"
+        print_status "Overwrote configuration file at $CONFIG_DIR/config.json"
+    fi
+else
+    cat > "$CONFIG_DIR/config.json" << EOL
+{
+    "default_lyrics_dir": "$DEFAULT_LYRICS_DIR",
+    "file_format": "markdown",
+    "add_metadata": true,
+    "overwrite_existing": false,
+    "quiet_mode": false
+}
+EOL
+    print_status "Created configuration file at $CONFIG_DIR/config.json"
+fi
 
 # Test the installation
 print_info "Testing installation..."
+# Give some time for PATH to propagate or ensure the script can find the executable
+# This might still require a shell restart for `command -v` to work reliably in a fresh shell
+sleep 1 # Small delay
 if command -v lyrics-cli &> /dev/null; then
     print_status "lyrics-cli is available in PATH"
 elif [[ -f "$HOME/.local/bin/lyrics-cli" ]]; then
     print_status "lyrics-cli is installed at $HOME/.local/bin/lyrics-cli"
     print_warning "You may need to restart your shell to use 'lyrics-cli' command"
 else
-    print_error "Installation test failed"
+    print_error "Installation test failed: lyrics-cli command not found after installation."
     exit 1
 fi
 
@@ -230,9 +244,11 @@ if [[ $run_test =~ ^[Yy]$ ]]; then
     print_info "Running test..."
     
     # Try to run the command
+    # Use the full path if command -v still doesn't find it immediately
     if command -v lyrics-cli &> /dev/null; then
         lyrics-cli --version 2>/dev/null || lyrics-cli --help | head -5
     else
+        # Fallback to direct path, as PATH might not be updated in current shell
         "$HOME/.local/bin/lyrics-cli" --version 2>/dev/null || "$HOME/.local/bin/lyrics-cli" --help | head -5
     fi
     
