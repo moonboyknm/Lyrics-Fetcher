@@ -26,7 +26,7 @@ A powerful command-line tool for searching and downloading song lyrics directly 
 1. **Clone or download the project:**
    ```bash
    git clone <your-repo-url>
-   cd lyrics-cli
+   cd Lyrics-Fetcher/
    ```
 
 2. **Run the installer:**
