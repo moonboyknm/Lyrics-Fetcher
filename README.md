@@ -1,4 +1,4 @@
-# 🎵 Lyrics-CLI
+# 🎵 Lyrics-Fetcher
 
 A powerful command-line tool for searching and downloading song lyrics directly to your local filesystem, with special support for Obsidian note-taking workflows.
 
