@@ -149,4 +149,99 @@ if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     
     if [[ $add_to_path =~ ^[Yy]$ ]]; then
         # Detect shell and add to appropriate config
-        if [
+        if [[ -n "$ZSH_VERSION" ]]; then
+            # User is running zsh
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+            print_status "Added to ~/.zshrc"
+        elif [[ -n "$BASH_VERSION" ]]; then
+            # User is running bash
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+            print_status "Added to ~/.bashrc"
+        else
+            # Try to detect based on available config files
+            if [[ -f ~/.zshrc ]]; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+                print_status "Added to ~/.zshrc"
+            elif [[ -f ~/.bashrc ]]; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+                print_status "Added to ~/.bashrc"
+            else
+                print_warning "Could not detect shell config file. Please add manually."
+            fi
+        fi
+        
+        print_info "Please restart your shell or run: source ~/.bashrc (or ~/.zshrc)"
+    fi
+else
+    print_status "PATH is already configured correctly"
+fi
+
+# Create a config file
+print_info "Creating configuration file..."
+CONFIG_DIR="$HOME/.config/lyrics-cli"
+mkdir -p "$CONFIG_DIR"
+
+cat > "$CONFIG_DIR/config.json" << EOL
+{
+    "default_lyrics_dir": "$DEFAULT_LYRICS_DIR",
+    "file_format": "markdown",
+    "add_metadata": true,
+    "overwrite_existing": false,
+    "quiet_mode": false
+}
+EOL
+
+print_status "Created configuration file at $CONFIG_DIR/config.json"
+
+# Test the installation
+print_info "Testing installation..."
+if command -v lyrics-cli &> /dev/null; then
+    print_status "lyrics-cli is available in PATH"
+elif [[ -f "$HOME/.local/bin/lyrics-cli" ]]; then
+    print_status "lyrics-cli is installed at $HOME/.local/bin/lyrics-cli"
+    print_warning "You may need to restart your shell to use 'lyrics-cli' command"
+else
+    print_error "Installation test failed"
+    exit 1
+fi
+
+# Final success message
+echo
+echo -e "${GREEN}${ROCKET} Installation completed successfully! ${ROCKET}${NC}"
+echo -e "${CYAN}===============================================${NC}"
+echo -e "${BLUE}Usage examples:${NC}"
+echo -e "${YELLOW}  lyrics-cli search \"song title\" \"artist\"${NC}"
+echo -e "${YELLOW}  lyrics-cli download \"song title\" \"artist\"${NC}"
+echo -e "${YELLOW}  lyrics-cli --help${NC}"
+echo
+echo -e "${BLUE}Configuration:${NC}"
+echo -e "${YELLOW}  Config file: $CONFIG_DIR/config.json${NC}"
+echo -e "${YELLOW}  Default lyrics directory: $DEFAULT_LYRICS_DIR${NC}"
+echo
+echo -e "${GREEN}Happy lyric hunting! ${MUSIC_NOTE}${NC}"
+
+# Optional: Ask if user wants to run a test
+echo
+echo -n "Would you like to run a quick test? (y/n): "
+read -r run_test
+
+if [[ $run_test =~ ^[Yy]$ ]]; then
+    echo
+    print_info "Running test..."
+    
+    # Try to run the command
+    if command -v lyrics-cli &> /dev/null; then
+        lyrics-cli --version 2>/dev/null || lyrics-cli --help | head -5
+    else
+        "$HOME/.local/bin/lyrics-cli" --version 2>/dev/null || "$HOME/.local/bin/lyrics-cli" --help | head -5
+    fi
+    
+    if [[ $? -eq 0 ]]; then
+        print_status "Test passed! lyrics-cli is working correctly."
+    else
+        print_warning "Test had issues, but installation should still work."
+    fi
+fi
+
+echo
+echo -e "${PURPLE}Installation complete! Enjoy using lyrics-cli! ${MUSIC_NOTE}${NC}"
