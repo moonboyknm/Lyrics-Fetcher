@@ -12,6 +12,7 @@ A powerful command-line tool for searching and downloading song lyrics directly 
 - 🗂️ **Obsidian integration** - perfect for your music notes vault
 - 🎨 **Beautiful CLI interface** with colors and emojis
 - 🔒 **Safe installation** - no root privileges required
+- ⚠️ **The API can be problematic sometimes**
 
 ## 🚀 Quick Start
 
